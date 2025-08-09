@@ -683,13 +683,13 @@
                 new Platform({ x: 0, y: groundLevel, width: 500 }),
                 new Platform({ x: 700, y: midLevel }),
                 new Platform({ x: 1200, y: highLevel }),
-                new Platform({ x: 1800, y: topLevel }),
+                new Platform({ x: 1800, y: highLevel }), // Moved from topLevel to highLevel
                 new Platform({ x: 2400, y: midLevel }),
                 new Platform({ x: 3000, y: groundLevel, width: 800 }),
                 new Platform({ x: 4000, y: midLevel }),
-                new Platform({ x: 4600, y: topLevel }),
+                new Platform({ x: 4600, y: highLevel }), // Moved from topLevel to highLevel
                 new Platform({ x: 5200, y: highLevel }),
-                new Platform({ x: 5800, y: topLevel }),
+                new Platform({ x: 5800, y: highLevel }), // Moved from topLevel to highLevel
                 new Platform({ x: 6400, y: midLevel }),
                 new Platform({ x: 7000, y: groundLevel, width: 800 }),
                 new Platform({ x: 8000, y: midLevel }),
@@ -698,10 +698,10 @@
             collectibles = [
                 new Collectible({ x: 400, y: groundLevel - 40, storyId: 'spark', icon: '💡', type: 'positive' }),
                 new Collectible({ x: 1280, y: highLevel - 40, storyId: 'scholarship', icon: '🎓', type: 'positive' }),
-                new Collectible({ x: 2000, y: topLevel - 40, storyId: 'deep_end', icon: '🤔', type: 'negative' }),
+                new Collectible({ x: 2000, y: highLevel - 40, storyId: 'deep_end', icon: '🤔', type: 'negative' }), // Moved from topLevel to highLevel
                 new Collectible({ x: 3500, y: groundLevel - 40, storyId: 'internships', icon: '🤝', type: 'positive' }),
-                new Collectible({ x: 4700, y: topLevel - 40, storyId: 'strategy_change', icon: '🎯', type: 'negative' }),
-                new Collectible({ x: 6000, y: topLevel - 40, storyId: 'google_start', icon: 'G', type: 'positive' }),
+                new Collectible({ x: 4700, y: highLevel - 40, storyId: 'strategy_change', icon: '🎯', type: 'negative' }), // Moved from topLevel to highLevel
+                new Collectible({ x: 6000, y: highLevel - 40, storyId: 'google_start', icon: 'G', type: 'positive' }), // Moved from topLevel to highLevel
                 new Collectible({ x: 7200, y: groundLevel - 40, storyId: 'google_growth', icon: '🚀', type: 'positive' }),
                 new Collectible({ x: 8200, y: midLevel - 40, storyId: 'where_i_am_now', icon: '🌟', type: 'positive' }),
             ];
@@ -751,11 +751,10 @@
                     platforms.forEach(p => p.position.x -= 5);
                     collectibles.forEach(c => c.position.x -= 5);
                 } else if (keys.left.pressed) {
-                    if (scrollOffset > 0) {
-                        scrollOffset -= 5;
-                        platforms.forEach(p => p.position.x += 5);
-                        collectibles.forEach(c => c.position.x += 5);
-                    }
+                    // Allow unlimited backward movement
+                    scrollOffset -= 5;
+                    platforms.forEach(p => p.position.x += 5);
+                    collectibles.forEach(c => c.position.x += 5);
                 }
             }
 
