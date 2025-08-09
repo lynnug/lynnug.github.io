@@ -911,7 +911,7 @@
             }, 2000);
         }
         
-        closeModalButton.addEventListener('click', () => {
+        function handleCloseModal() {
             storyModal.style.display = 'none';
             if (isFinalStory) {
                 finalSequence();
@@ -919,20 +919,38 @@
                 gamePaused = false;
                 animate();
             }
-        });
-        
-        playAgainButton.addEventListener('click', () => {
+        }
+
+        function handlePlayAgain() {
             celebrationModal.style.display = 'none';
             gamePaused = false;
             init();
             animate();
+        }
+
+        closeModalButton.addEventListener('click', handleCloseModal);
+        closeModalButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleCloseModal();
+        });
+        
+        playAgainButton.addEventListener('click', handlePlayAgain);
+        playAgainButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handlePlayAgain();
         });
 
-        startButton.addEventListener('click', () => {
+        function handleStartGame() {
             startScreen.style.display = 'none';
             gameContainer.classList.remove('hidden');
             init();
             animate();
+        }
+
+        startButton.addEventListener('click', handleStartGame);
+        startButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleStartGame();
         });
 
         window.addEventListener('keydown', ({ keyCode }) => {
