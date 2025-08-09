@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Journey in Tech: The Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 60%, #90EE90 60%, #32CD32 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        canvas {
+            background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 60%, #90EE90 60%, #32CD32 100%);
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+        }
+        .game-container {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .modal {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        .modal-content {
+            background-color: #2a2a2a;
+            border: 4px solid #ffffff;
+            box-shadow: 0 0 0 4px #000000;
+        }
+        .start-screen-button {
+            background-color: #22c55e; /* green-500 */
+            border-bottom: 6px solid #166534; /* green-800 */
+        }
+        .start-screen-button:active {
+            transform: translateY(4px);
+            border-bottom-width: 2px;
+        }
+        #modalText {
+            white-space: pre-wrap;
+            text-align: left;
+            line-height: 2;
+        }
+        .celebration-modal-content {
+             background: linear-gradient(145deg, #2a2a2a, #4a4a4a);
+        }
+        .clouds {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 100px;
+            animation: drift 20s infinite linear;
+        }
+        @keyframes drift {
+            from { transform: translateX(-200px); }
+            to { transform: translateX(calc(100vw + 200px)); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated clouds -->
+    <div class="clouds">
+        <div class="cloud" style="width: 100px; height: 40px; top: 20%; animation-delay: -5s;"></div>
+        <div class="cloud" style="width: 80px; height: 30px; top: 30%; animation-delay: -10s;"></div>
+        <div class="cloud" style="width: 120px; height: 50px; top: 15%; animation-delay: -15s;"></div>
+    </div>
+
+    <div id="startScreen" class="w-full max-w-2xl text-center p-8">
+        <h1 class="text-4xl md:text-5xl mb-4">My Journey in Tech</h1>
+        <p class="text-xl mb-8">The Game</p>
+        <button id="startButton" class="start-screen-button text-white font-bold py-4 px-8 rounded-lg text-2xl transition-transform">Start Game</button>
+    </div>
+
+    <div id="gameContainer" class="game-container hidden relative">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="storyModal" class="modal fixed inset-0 items-center justify-center p-4 hidden">
+        <div class="modal-content rounded-lg p-8 w-full max-w-3xl">
+            <h2 id="modalHeadline" class="text-3xl mb-4 text-yellow-400 text-center"></h2>
+            <p id="modalText" class="text-lg mb-6"></p>
+            <div class="text-center">
+                <button id="closeModalButton" class="start-screen-button text-white font-bold py-2 px-6 rounded-lg text-lg">Continue</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="celebrationModal" class="modal fixed inset-0 items-center justify-center p-4 hidden">
+        <div class="modal-content celebration-modal-content rounded-lg p-8 w-full max-w-3xl text-center">
+            <h2 class="text-4xl mb-4 text-green-400">YOU DID IT!</h2>
+            <p class="text-2xl mb-2 text-yellow-400">Congratulations, Lynn!</p>
+            <p class="text-lg mb-8">You've successfully navigated the journey of your career.</p>
+            <button id="playAgainButton" class="start-screen-button text-white font-bold py-4 px-8 rounded-lg text-2xl transition-transform">Play Again</button>
+        </div>
+    </div>
+
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const startScreen = document.getElementById('startScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        const startButton = document.getElementById('startButton');
+
+        const storyModal = document.getElementById('storyModal');
+        const modalHeadline = document.getElementById('modalHeadline');
+        const modalText = document.getElementById('modalText');
+        const closeModalButton = document.getElementById('closeModalButton');
+        
+        const celebrationModal = document.getElementById('celebrationModal');
+        const playAgainButton = document.getElementById('playAgainButton');
+
+        const GRAVITY = 0.8;
+        const BASE_PLAYER_WIDTH = 40;
+        const BASE_PLAYER_HEIGHT = 60;
+        let gamePaused = false;
+        let isFinalStory = false;
+        let animationFrameId;
+
+        // Set canvas to fill screen while maintaining aspect ratio
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let googleColorIndex = 0;
+        let frameCount = 0;
+
+        function drawUgandanBackground() {
+            // Draw sky gradient
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.6);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(1, '#B0E0E6');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.6);
+
+            // Draw ground gradient
+            const groundGradient = ctx.createLinearGradient(0, canvas.height * 0.6, 0, canvas.height);
+            groundGradient.addColorStop(0, '#90EE90');
+            groundGradient.addColorStop(1, '#32CD32');
+            ctx.fillStyle = groundGradient;
+            ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
+
+            // Draw distant hills
+            ctx.fillStyle = '#228B22';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height * 0.7);
+            for (let x = 0; x <= canvas.width; x += 50) {
+                const hillHeight = Math.sin(x * 0.01) * 30 + canvas.height * 0.15;
+                ctx.lineTo(x, canvas.height * 0.6 + hillHeight);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw simple acacia trees
+            drawAcaciaTree(canvas.width * 0.15, canvas.height * 0.65);
+            drawAcaciaTree(canvas.width * 0.75, canvas.height * 0.68);
+            drawAcaciaTree(canvas.width * 0.45, canvas.height * 0.72);
+
+            // Draw sun
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(canvas.width * 0.85, canvas.height * 0.15, 40, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawAcaciaTree(x, y) {
+            // Tree trunk
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(x - 5, y, 10, canvas.height * 0.15);
+            
+            // Tree canopy (acacia shape)
+            ctx.fillStyle = '#006400';
+            ctx.beginPath();
+            ctx.ellipse(x, y - 20, 60, 25, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Smaller upper canopy
+            ctx.beginPath();
+            ctx.ellipse(x, y - 35, 40, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        class Player {
+            constructor() {
+                this.position = { x: 100, y: 100 };
+                this.velocity = { x: 0, y: 0 };
+                this.width = BASE_PLAYER_WIDTH;
+                this.height = BASE_PLAYER_HEIGHT;
+                this.jumps = 0;
+                this.sizeMultiplier = 1.0;
+                this.hasGraduated = false;
+                this.hasJoinedGoogle = false;
+                this.hasLaptop = false;
+                this.isInRobotSuit = false;
+                this.wearsKubernetesIcon = false;
+                this.isDancing = false;
+                this.danceTimer = 0;
+                this.danceFrame = 0;
+            }
+
+            drawOriginalCharacter(x, y, sizeMultiplier) {
+                const currentWidth = BASE_PLAYER_WIDTH * sizeMultiplier;
+                const currentHeight = BASE_PLAYER_HEIGHT * sizeMultiplier;
+                
+                // Happy dance animation offsets
+                let danceOffsetX = 0;
+                let danceOffsetY = 0;
+                let armOffset = 0;
+                if (this.isDancing) {
+                    danceOffsetX = Math.sin(this.danceFrame * 0.5) * 3 * sizeMultiplier;
+                    danceOffsetY = Math.abs(Math.sin(this.danceFrame * 0.3)) * 5 * sizeMultiplier;
+                    armOffset = Math.sin(this.danceFrame * 0.4) * 10 * sizeMultiplier;
+                }
+
+                // Head (Skin tone) with dance animation
+                ctx.fillStyle = '#8D5524';
+                ctx.beginPath();
+                ctx.arc(x + currentWidth / 2 + danceOffsetX, y + 12 * sizeMultiplier - danceOffsetY, 12 * sizeMultiplier, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Hair with dance animation
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(x + currentWidth / 2 + danceOffsetX, y + 12 * sizeMultiplier - danceOffsetY, 13 * sizeMultiplier, Math.PI, Math.PI * 2, false);
+                ctx.fill();
+
+                // Hat Logic
+                if (this.hasJoinedGoogle) {
+                    const hatX = x + (currentWidth - (28 * sizeMultiplier)) / 2;
+                    const hatY = y;
+                    const stripeWidth = (28 * sizeMultiplier) / 4;
+                    const googleColors = ['#4285F4', '#DB4437', '#F4B400', '#0F9D58'];
+                    for (let i = 0; i < 4; i++) {
+                        ctx.fillStyle = googleColors[i];
+                        ctx.fillRect(hatX + i * stripeWidth, hatY, stripeWidth, 10 * sizeMultiplier);
+                    }
+                } else if (this.hasGraduated) {
+                    const hatWidth = 28 * sizeMultiplier;
+                    const hatHeight = 8 * sizeMultiplier;
+                    const hatX = x + (currentWidth - hatWidth) / 2;
+                    const hatY = y - 2 * sizeMultiplier;
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(hatX, hatY, hatWidth, hatHeight);
+                    ctx.strokeStyle = '#FCDC04';
+                    ctx.lineWidth = 2 * sizeMultiplier;
+                    ctx.beginPath();
+                    ctx.moveTo(hatX + hatWidth, hatY + hatHeight / 2);
+                    ctx.lineTo(hatX + hatWidth + 5 * sizeMultiplier, hatY + hatHeight / 2 + 10 * sizeMultiplier);
+                    ctx.stroke();
+                }
+
+                // Ugandan Flag Dress
+                const dressTopY = y + 24 * sizeMultiplier;
+                const dressHeight = currentHeight - 24 * sizeMultiplier;
+                const stripeHeight = dressHeight / 6;
+                const flagColors = ['#000000', '#FCDC04', '#D90000', '#000000', '#FCDC04', '#D90000'];
+                const topDressWidth = currentWidth - 10 * sizeMultiplier;
+                const bottomDressWidth = currentWidth;
+                for (let i = 0; i < 6; i++) {
+                    const stripeY = dressTopY + i * stripeHeight;
+                    const topLerp = i / 6;
+                    const bottomLerp = (i + 1) / 6;
+                    const startWidth = topDressWidth + (bottomDressWidth - topDressWidth) * topLerp;
+                    const endWidth = topDressWidth + (bottomDressWidth - topDressWidth) * bottomLerp;
+                    const startX = x + (currentWidth - startWidth) / 2;
+                    const endX = x + (currentWidth - endWidth) / 2;
+                    ctx.fillStyle = flagColors[i];
+                    ctx.beginPath();
+                    ctx.moveTo(startX, stripeY);
+                    ctx.lineTo(startX + startWidth, stripeY);
+                    ctx.lineTo(endX + endWidth, stripeY + stripeHeight);
+                    ctx.lineTo(endX, stripeY + stripeHeight);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                
+                // Kubernetes Icon on chest
+                if (this.wearsKubernetesIcon) {
+                    const iconCenterX = x + currentWidth / 2;
+                    const iconCenterY = y + 40 * sizeMultiplier; // Position on the chest
+                    const iconSize = 10 * sizeMultiplier;
+
+                    // Outer circle (background)
+                    ctx.fillStyle = '#326CE5'; // Kubernetes blue
+                    ctx.beginPath();
+                    ctx.arc(iconCenterX, iconCenterY, iconSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Inner white circle
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(iconCenterX, iconCenterY, iconSize * 0.7, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Kubernetes helm spokes
+                    ctx.strokeStyle = '#326CE5';
+                    ctx.lineWidth = 1.5 * sizeMultiplier;
+                    ctx.lineCap = 'round';
+                    
+                    // Draw 7 spokes
+                    for (let i = 0; i < 7; i++) {
+                        const angle = (i / 7) * 2 * Math.PI - Math.PI / 2;
+                        const innerRadius = iconSize * 0.2;
+                        const outerRadius = iconSize * 0.6;
+                        
+                        const startX = iconCenterX + innerRadius * Math.cos(angle);
+                        const startY = iconCenterY + innerRadius * Math.sin(angle);
+                        const endX = iconCenterX + outerRadius * Math.cos(angle);
+                        const endY = iconCenterY + outerRadius * Math.sin(angle);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.lineTo(endX, endY);
+                        ctx.stroke();
+                    }
+                    
+                    // Center hub
+                    ctx.fillStyle = '#326CE5';
+                    ctx.beginPath();
+                    ctx.arc(iconCenterX, iconCenterY, iconSize * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Center dot
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(iconCenterX, iconCenterY, iconSize * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Laptop
+                if (this.hasLaptop) {
+                    const laptopWidth = 20 * sizeMultiplier;
+                    const laptopHeight = 15 * sizeMultiplier;
+                    const laptopX = x - laptopWidth + 8 * sizeMultiplier;
+                    const laptopY = y + 35 * sizeMultiplier;
+                    
+                    // Laptop base (bottom part)
+                    ctx.fillStyle = '#2F2F2F'; // Dark gray base
+                    ctx.fillRect(laptopX, laptopY + laptopHeight * 0.6, laptopWidth, laptopHeight * 0.4);
+                    
+                    // Laptop screen (top part)
+                    ctx.fillStyle = '#1A1A1A'; // Very dark gray for screen bezel
+                    ctx.fillRect(laptopX, laptopY, laptopWidth, laptopHeight * 0.6);
+                    
+                    // Screen display (blue/black)
+                    ctx.fillStyle = '#000080'; // Dark blue screen
+                    ctx.fillRect(laptopX + 2 * sizeMultiplier, laptopY + 2 * sizeMultiplier, 
+                                laptopWidth - 4 * sizeMultiplier, laptopHeight * 0.6 - 4 * sizeMultiplier);
+                    
+                    // Screen reflection/glare
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.fillRect(laptopX + 2 * sizeMultiplier, laptopY + 2 * sizeMultiplier, 
+                                (laptopWidth - 4 * sizeMultiplier) * 0.3, laptopHeight * 0.15);
+                    
+                    // Keyboard area
+                    ctx.fillStyle = '#404040'; // Medium gray for keyboard
+                    ctx.fillRect(laptopX + 2 * sizeMultiplier, laptopY + laptopHeight * 0.65, 
+                                laptopWidth - 4 * sizeMultiplier, laptopHeight * 0.25);
+                    
+                    // Simple keyboard keys (dots)
+                    ctx.fillStyle = '#606060';
+                    for (let row = 0; row < 2; row++) {
+                        for (let col = 0; col < 6; col++) {
+                            const keyX = laptopX + 3 * sizeMultiplier + col * 2.5 * sizeMultiplier;
+                            const keyY = laptopY + laptopHeight * 0.67 + row * 2 * sizeMultiplier;
+                            ctx.fillRect(keyX, keyY, 1.5 * sizeMultiplier, 1 * sizeMultiplier);
+                        }
+                    }
+                    
+                    // Trackpad
+                    ctx.fillStyle = '#505050';
+                    ctx.fillRect(laptopX + laptopWidth * 0.4, laptopY + laptopHeight * 0.8, 
+                                laptopWidth * 0.2, laptopHeight * 0.15);
+                    
+                    // Laptop brand logo (small dot)
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath();
+                    ctx.arc(laptopX + laptopWidth * 0.9, laptopY + laptopHeight * 0.1, 
+                           1 * sizeMultiplier, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            draw() {
+                if (this.isInRobotSuit) {
+                    const robotWidth = this.width * 1.5;
+                    const robotHeight = this.height * 1.5;
+                    const robotX = this.position.x;
+                    const robotY = this.position.y;
+
+                    // Robot Body (metallic gradient effect)
+                    const gradient = ctx.createLinearGradient(robotX, robotY, robotX + robotWidth, robotY + robotHeight);
+                    gradient.addColorStop(0, '#e5e5e5');
+                    gradient.addColorStop(0.5, '#a0a0a0');
+                    gradient.addColorStop(1, '#606060');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(robotX, robotY, robotWidth, robotHeight);
+                    
+                    // Robot chest panel
+                    ctx.fillStyle = '#2a2a2a';
+                    ctx.fillRect(robotX + robotWidth * 0.1, robotY + robotHeight * 0.3, robotWidth * 0.8, robotHeight * 0.4);
+                    
+                    // Chest panel border
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(robotX + robotWidth * 0.1, robotY + robotHeight * 0.3, robotWidth * 0.8, robotHeight * 0.4);
+
+                    // Robot head/helmet
+                    ctx.fillStyle = '#d0d0d0';
+                    ctx.beginPath();
+                    ctx.arc(robotX + robotWidth / 2, robotY + robotHeight * 0.15, robotWidth * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Helmet visor
+                    ctx.fillStyle = '#000080';
+                    ctx.beginPath();
+                    ctx.arc(robotX + robotWidth / 2, robotY + robotHeight * 0.15, robotWidth * 0.25, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Glowing eyes
+                    ctx.fillStyle = '#00ffff';
+                    ctx.beginPath();
+                    ctx.arc(robotX + robotWidth * 0.4, robotY + robotHeight * 0.12, robotWidth * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(robotX + robotWidth * 0.6, robotY + robotHeight * 0.12, robotWidth * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Circuit pattern on chest
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 1;
+                    const centerX = robotX + robotWidth / 2;
+                    const centerY = robotY + robotHeight * 0.5;
+                    for (let i = 0; i < 4; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(centerX, centerY);
+                        ctx.lineTo(centerX + Math.cos(i * Math.PI / 2) * robotWidth * 0.15, centerY + Math.sin(i * Math.PI / 2) * robotHeight * 0.08);
+                        ctx.stroke();
+                    }
+                    
+                    // AI Text with glow effect
+                    ctx.shadowColor = '#00ff00';
+                    ctx.shadowBlur = 10;
+                    ctx.fillStyle = '#00ff00';
+                    ctx.font = `${12 * this.sizeMultiplier}px "Press Start 2P"`;
+                    ctx.fillText('A.I.', robotX + robotWidth * 0.35, robotY + robotHeight * 0.65);
+                    ctx.shadowBlur = 0;
+
+                    // Robot arms/joints
+                    ctx.fillStyle = '#808080';
+                    ctx.fillRect(robotX - 10, robotY + robotHeight * 0.4, 15, robotHeight * 0.3);
+                    ctx.fillRect(robotX + robotWidth - 5, robotY + robotHeight * 0.4, 15, robotHeight * 0.3);
+
+                    // Draw original character on top (piloting the robot)
+                    const charX = robotX + (robotWidth - this.width) / 2;
+                    const charY = robotY - this.height + 30;
+                    this.drawOriginalCharacter(charX, charY, this.sizeMultiplier * 0.8);
+                } else {
+                    this.drawOriginalCharacter(this.position.x, this.position.y, this.sizeMultiplier);
+                }
+            }
+
+            update() {
+                if (this.isInRobotSuit) {
+                    this.width = BASE_PLAYER_WIDTH * this.sizeMultiplier * 1.5;
+                    this.height = BASE_PLAYER_HEIGHT * this.sizeMultiplier * 1.5;
+                } else {
+                    this.width = BASE_PLAYER_WIDTH * this.sizeMultiplier;
+                    this.height = BASE_PLAYER_HEIGHT * this.sizeMultiplier;
+                }
+                
+                // Update dance animation
+                if (this.isDancing) {
+                    this.danceTimer--;
+                    this.danceFrame++;
+                    if (this.danceTimer <= 0) {
+                        this.isDancing = false;
+                        this.danceFrame = 0;
+                    }
+                }
+                
+                this.draw();
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
+
+                if (this.position.y + this.height + this.velocity.y <= canvas.height) {
+                    this.velocity.y += GRAVITY * this.sizeMultiplier;
+                } else {
+                    this.velocity.y = 0;
+                    this.jumps = 0;
+                }
+            }
+            
+            startHappyDance() {
+                this.isDancing = true;
+                this.danceTimer = 120; // 2 seconds at 60fps
+                this.danceFrame = 0;
+            }
+            
+            changeSize(type) {
+                if (type === 'positive') {
+                    this.sizeMultiplier = Math.min(2.0, this.sizeMultiplier + 0.2);
+                } else if (type === 'negative') {
+                    this.sizeMultiplier = Math.max(0.6, this.sizeMultiplier - 0.2);
+                }
+            }
+        }
+
+        class Platform {
+            constructor({ x, y, width = 200, height = 20 }) {
+                this.position = { x, y };
+                this.width = width;
+                this.height = height;
+            }
+
+            draw() {
+                // Draw natural earth/rock platforms
+                ctx.fillStyle = '#8B4513'; // Saddle brown
+                ctx.fillRect(this.position.x, this.position.y, this.width, this.height);
+                
+                // Add grass on top
+                ctx.fillStyle = '#228B22'; // Forest green
+                ctx.fillRect(this.position.x, this.position.y, this.width, 3);
+                
+                // Add some texture
+                ctx.fillStyle = '#A0522D'; // Sienna
+                for (let i = 0; i < this.width; i += 20) {
+                    ctx.fillRect(this.position.x + i, this.position.y + 5, 10, this.height - 5);
+                }
+            }
+        }
+
+        class Collectible {
+            constructor({ x, y, storyId, icon, type }) {
+                this.position = { x, y };
+                this.width = 40;
+                this.height = 40;
+                this.storyId = storyId;
+                this.icon = icon;
+                this.type = type; // 'positive' or 'negative'
+            }
+
+            draw() {
+                ctx.font = '30px "Press Start 2P"';
+                if (this.icon === 'G') {
+                    const googleColors = ['#4285F4', '#DB4437', '#F4B400', '#0F9D58'];
+                    ctx.fillStyle = googleColors[googleColorIndex];
+                }
+                ctx.fillText(this.icon, this.position.x, this.position.y + this.height - 10);
+                ctx.fillStyle = '#ffffff'; // Reset color
+            }
+        }
+        
+        class Effect {
+            constructor({ position, text, color, velocity, lifetime }) {
+                this.position = position;
+                this.text = text;
+                this.color = color;
+                this.velocity = velocity;
+                this.lifetime = lifetime;
+                this.opacity = 1.0;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity;
+                ctx.fillStyle = this.color;
+                if (this.text === 'lightning') {
+                    ctx.strokeStyle = '#fef08a'; // yellow-200
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(this.position.x, 0);
+                    for (let i = 0; i < this.position.y; i += 20) {
+                        ctx.lineTo(this.position.x + Math.random() * 20 - 10, i);
+                    }
+                    ctx.lineTo(this.position.x, this.position.y);
+                    ctx.stroke();
+                } else {
+                    ctx.font = '20px "Press Start 2P"';
+                    ctx.fillText(this.text, this.position.x, this.position.y);
+                }
+                ctx.restore();
+            }
+
+            update() {
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
+                this.lifetime--;
+                if (this.lifetime < 20) {
+                    this.opacity = this.lifetime / 20;
+                }
+                this.draw();
+            }
+        }
+        
+        class Confetti {
+            constructor({ x, y }) {
+                this.position = { x, y };
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 8,
+                    y: Math.random() * -5 - 3
+                };
+                // Use Uganda flag colors for confetti
+                this.color = ['#000000', '#FCDC04', '#D90000', '#228B22', '#00ff00', '#ffff00'][Math.floor(Math.random() * 6)];
+                this.size = Math.random() * 6 + 2;
+                this.lifetime = 150;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.3;
+                this.gravity = 0.3;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.position.x, this.position.y);
+                ctx.rotate(this.rotation);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
+                ctx.restore();
+            }
+
+            update() {
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
+                this.velocity.y += this.gravity;
+                this.rotation += this.rotationSpeed;
+                this.lifetime--;
+                this.draw();
+            }
+        }
+
+        const storyContent = {
+            'spark': { headline: "The Spark: From Books to Bytes", text: `• My love for information started with my Dad's daily newspaper routine.\n• In the Namagunga library, I discovered the power of knowledge in books.\n• An internet cafe visit was my 'aha!' moment, connecting information with technology.` },
+            'scholarship': { headline: "The Scholarship That Changed Everything", text: `• Found a Google Zawadi scholarship ad in a newspaper.\n• Applied secretly after recognizing the Google name.\n• Overcame family hesitation with a compromise: a combined EE/CS degree.\n• This led to my first laptop and first flight!` },
+            'deep_end': { headline: "Jumping in the Deep End", text: `• My first attempt to boot a computer failed until a student helped me.\n• I was completely confused by the 'Hello, World!' assignment.\n• Realized other students had much more experience.\n• Still, I joined hackathons, teaching me resilience.` },
+            'internships': { headline: "Building a Foundation: Internships", text: `• Took initiative and got an internship at Ushahidi via Twitter.\n• Found an opportunity with Praekelt Consulting on campus.\n• Both experiences taught me to creative ways to find opportunties and gave me practical skills.` },
+            'strategy_change': { headline: "First Attempts & a Change in Strategy", text: `• After university, I was rejected from all the SWE roles I applied for.\n• Realized I needed more hands-on coding experience.\n• Started attending hackathons at HiveColab, which led to my first job at Access Mobile.` },
+            'google_start': { headline: "The Google Journey Begins", text: `• A friend told me about the IT Resident program at Google.\n• I was lucky that my troubleshooting and networking skills were exactly what they were looking for in the interviews.` },
+            'google_growth': { headline: "A Decade of Growth at Google", text: `• As an IT Resident, I discovered a world of different tech careers.\n• My TSE role was a 'roller coaster' where I fell in love with Google Kubernetes Engine.\n• After 4 years, I re-interviewed for a SWE role in Monitoring to follow my passion.` },
+            'where_i_am_now': { headline: "Where I Am Now", text: `• Today, I build and design the large-scale distributed systems that help keep Google's services reliable.\n• My journey has come full circle. Now I know what my younger self should have told my Dad about a career working with computers.\n• Key Lesson: Stay curious. Be willing to take the leap.` }
+        };
+
+        let player = new Player();
+        let platforms = [];
+        let collectibles = [];
+        let effects = [];
+        let confetti = [];
+        let keys = { right: { pressed: false }, left: { pressed: false } };
+        let scrollOffset = 0;
+
+        function init() {
+            player = new Player();
+            scrollOffset = 0;
+            confetti = [];
+            // Use canvas height for relative positioning
+            const groundLevel = canvas.height - 50;
+            const midLevel = canvas.height - 150;
+            const highLevel = canvas.height - 250;
+            const topLevel = canvas.height - 350;
+            
+            platforms = [
+                new Platform({ x: 0, y: groundLevel, width: 500 }),
+                new Platform({ x: 700, y: midLevel }),
+                new Platform({ x: 1200, y: highLevel }),
+                new Platform({ x: 1800, y: topLevel }),
+                new Platform({ x: 2400, y: midLevel }),
+                new Platform({ x: 3000, y: groundLevel, width: 800 }),
+                new Platform({ x: 4000, y: midLevel }),
+                new Platform({ x: 4600, y: topLevel }),
+                new Platform({ x: 5200, y: highLevel }),
+                new Platform({ x: 5800, y: topLevel }),
+                new Platform({ x: 6400, y: midLevel }),
+                new Platform({ x: 7000, y: groundLevel, width: 800 }),
+                new Platform({ x: 8000, y: midLevel }),
+                new Platform({ x: 8600, y: groundLevel, width: 1000 }),
+            ];
+            collectibles = [
+                new Collectible({ x: 400, y: groundLevel - 40, storyId: 'spark', icon: '💡', type: 'positive' }),
+                new Collectible({ x: 1280, y: highLevel - 40, storyId: 'scholarship', icon: '🎓', type: 'positive' }),
+                new Collectible({ x: 2000, y: topLevel - 40, storyId: 'deep_end', icon: '🤔', type: 'negative' }),
+                new Collectible({ x: 3500, y: groundLevel - 40, storyId: 'internships', icon: '🤝', type: 'positive' }),
+                new Collectible({ x: 4700, y: topLevel - 40, storyId: 'strategy_change', icon: '🎯', type: 'negative' }),
+                new Collectible({ x: 6000, y: topLevel - 40, storyId: 'google_start', icon: 'G', type: 'positive' }),
+                new Collectible({ x: 7200, y: groundLevel - 40, storyId: 'google_growth', icon: '🚀', type: 'positive' }),
+                new Collectible({ x: 8200, y: midLevel - 40, storyId: 'where_i_am_now', icon: '🌟', type: 'positive' }),
+            ];
+        }
+
+        function animate() {
+            if (gamePaused) return;
+            animationFrameId = requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Ugandan background
+            drawUgandanBackground();
+
+            frameCount++;
+            if (frameCount % 15 === 0) {
+                googleColorIndex = (googleColorIndex + 1) % 4;
+            }
+
+            platforms.forEach(platform => platform.draw());
+            collectibles.forEach(collectible => collectible.draw());
+            player.update();
+            
+            effects.forEach((effect, index) => {
+                if (effect.lifetime <= 0) {
+                    effects.splice(index, 1);
+                } else {
+                    effect.update();
+                }
+            });
+            
+            confetti.forEach((piece, index) => {
+                if (piece.lifetime <= 0) {
+                    confetti.splice(index, 1);
+                } else {
+                    piece.update();
+                }
+            });
+
+            if (keys.right.pressed && player.position.x < 400) {
+                player.velocity.x = 5;
+            } else if (keys.left.pressed && player.position.x > 100) {
+                player.velocity.x = -5;
+            } else {
+                player.velocity.x = 0;
+                if (keys.right.pressed) {
+                    scrollOffset += 5;
+                    platforms.forEach(p => p.position.x -= 5);
+                    collectibles.forEach(c => c.position.x -= 5);
+                } else if (keys.left.pressed) {
+                    if (scrollOffset > 0) {
+                        scrollOffset -= 5;
+                        platforms.forEach(p => p.position.x += 5);
+                        collectibles.forEach(c => c.position.x += 5);
+                    }
+                }
+            }
+
+            platforms.forEach(platform => {
+                if (player.position.y + player.height <= platform.position.y &&
+                    player.position.y + player.height + player.velocity.y >= platform.position.y &&
+                    player.position.x + player.width >= platform.position.x &&
+                    player.position.x <= platform.position.x + platform.width) {
+                    player.velocity.y = 0;
+                    player.jumps = 0;
+                }
+            });
+
+            collectibles.forEach((collectible, index) => {
+                if (player.position.x < collectible.position.x + collectible.width &&
+                    player.position.x + player.width > collectible.position.x &&
+                    player.position.y < collectible.position.y + collectible.height &&
+                    player.position.y + player.height > collectible.position.y) {
+                    
+                    player.changeSize(collectible.type);
+                    if (collectible.type === 'positive') {
+                        // Happy dance and confetti for positive collectibles
+                        player.startHappyDance();
+                        
+                        // Create confetti explosion with Ugandan colors
+                        for (let i = 0; i < 20; i++) {
+                            confetti.push(new Confetti({
+                                x: collectible.position.x + collectible.width / 2,
+                                y: collectible.position.y + collectible.height / 2
+                            }));
+                        }
+                        
+                        // Success effect
+                        effects.push(new Effect({ 
+                            position: { x: player.position.x, y: player.position.y - 20 }, 
+                            text: 'Success!', 
+                            color: '#22c55e', 
+                            velocity: { x: 0, y: -2 }, 
+                            lifetime: 80 
+                        }));
+                    } else if (collectible.type === 'negative') {
+                        player.velocity.y = -15; // Knockback up
+                        player.velocity.x = -20; // Knockback back
+                        effects.push(new Effect({ position: { x: player.position.x, y: player.position.y }, text: 'lightning', color: 'yellow', velocity: { x: 0, y: 0 }, lifetime: 20 }));
+                        effects.push(new Effect({ position: { x: player.position.x, y: player.position.y - 10 }, text: 'Ouch!', color: '#ef4444', velocity: { x: 0, y: -1 }, lifetime: 60 }));
+                    }
+
+                    if (collectible.storyId === 'scholarship') {
+                        player.hasGraduated = true;
+                        player.hasLaptop = true;
+                    }
+                    if (collectible.storyId === 'google_start') {
+                        player.hasJoinedGoogle = true;
+                    }
+                    if (collectible.storyId === 'google_growth') {
+                        player.wearsKubernetesIcon = true;
+                    }
+                    
+                    const isFinal = collectible.storyId === 'where_i_am_now';
+                    if (isFinal) {
+                        player.isInRobotSuit = true;
+                    }
+
+                    collectibles.splice(index, 1);
+                    showStory(collectible.storyId, collectibles.length === 0);
+                }
+            });
+            
+            if (player.position.y > canvas.height) {
+                init(); // Reset game
+            }
+        }
+
+        function showStory(storyId, isFinal) {
+            isFinalStory = isFinal;
+            gamePaused = true;
+            const content = storyContent[storyId];
+            modalHeadline.innerText = content.headline;
+            modalText.innerText = content.text;
+            storyModal.style.display = 'flex';
+        }
+        
+        function showCelebration() {
+            gamePaused = true;
+            celebrationModal.style.display = 'flex';
+        }
+        
+        function finalSequence() {
+            gamePaused = false;
+            let finalWalkLoop = () => {
+                animationFrameId = requestAnimationFrame(finalWalkLoop);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawUgandanBackground();
+                platforms.forEach(p => p.draw());
+                player.velocity.x = 1; // Slow speed
+                player.update();
+            };
+            finalWalkLoop();
+
+            setTimeout(() => {
+                cancelAnimationFrame(animationFrameId);
+                showCelebration();
+            }, 2000);
+        }
+        
+        closeModalButton.addEventListener('click', () => {
+            storyModal.style.display = 'none';
+            if (isFinalStory) {
+                finalSequence();
+            } else {
+                gamePaused = false;
+                animate();
+            }
+        });
+        
+        playAgainButton.addEventListener('click', () => {
+            celebrationModal.style.display = 'none';
+            gamePaused = false;
+            init();
+            animate();
+        });
+
+        startButton.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            gameContainer.classList.remove('hidden');
+            init();
+            animate();
+        });
+
+        window.addEventListener('keydown', ({ keyCode }) => {
+            if (gamePaused) {
+                if (keyCode === 13) { // Enter key
+                    if (!storyModal.classList.contains('hidden')) {
+                        closeModalButton.click();
+                    } else if (!celebrationModal.classList.contains('hidden')) {
+                        playAgainButton.click();
+                    }
+                }
+                return;
+            }
+
+            switch (keyCode) {
+                case 65: // A
+                case 37: // Left
+                    keys.left.pressed = true;
+                    break;
+                case 83: // S
+                case 40: // Down
+                    break;
+                case 68: // D
+                case 39: // Right
+                    keys.right.pressed = true;
+                    break;
+                case 87: // W
+                case 38: // Up
+                case 32: // Space
+                    if (player.jumps < 2) {
+                        player.velocity.y = -18;
+                        player.jumps++;
+                    }
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', ({ keyCode }) => {
+            switch (keyCode) {
+                case 65: // A
+                case 37: // Left
+                    keys.left.pressed = false;
+                    break;
+                case 83: // S
+                case 40: // Down
+                    break;
+                case 68: // D
+                case 39: // Right
+                    keys.right.pressed = false;
+                    break;
+            }
+        });
+
+    </script>
+</body>
+</html>
