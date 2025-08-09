@@ -1013,15 +1013,22 @@
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             const x = touch.clientX - rect.left;
+            const screenWidth = rect.width;
             const currentTime = Date.now();
             
             // Movement controls - left/right sides of screen
-            if (x < canvas.width * 0.3) {
-                // Left side - move left
+            if (x < screenWidth * 0.3) {
+                // Left side - move left (backward)
                 keys.left.pressed = true;
-            } else if (x > canvas.width * 0.7) {
-                // Right side - move right  
+                keys.right.pressed = false;
+            } else if (x > screenWidth * 0.7) {
+                // Right side - move right (forward)
                 keys.right.pressed = true;
+                keys.left.pressed = false;
+            } else {
+                // Middle area - stop horizontal movement but allow jumping
+                keys.left.pressed = false;
+                keys.right.pressed = false;
             }
             
             // Jump control - anywhere on screen
@@ -1035,7 +1042,7 @@
         
         canvas.addEventListener('touchend', (e) => {
             e.preventDefault();
-            // Stop movement
+            // Stop all movement
             keys.left.pressed = false;
             keys.right.pressed = false;
         });
@@ -1045,10 +1052,22 @@
             const touch = e.touches[0];
             const rect = canvas.getBoundingClientRect();
             const x = touch.clientX - rect.left;
+            const screenWidth = rect.width;
             
-            // Update movement based on current touch position
-            keys.left.pressed = x < canvas.width * 0.3;
-            keys.right.pressed = x > canvas.width * 0.7;
+            // Update movement based on current touch position during drag
+            if (x < screenWidth * 0.3) {
+                // Left side - move left (backward)
+                keys.left.pressed = true;
+                keys.right.pressed = false;
+            } else if (x > screenWidth * 0.7) {
+                // Right side - move right (forward)
+                keys.right.pressed = true;
+                keys.left.pressed = false;
+            } else {
+                // Middle area - stop horizontal movement
+                keys.left.pressed = false;
+                keys.right.pressed = false;
+            }
         });
 
     </script>
