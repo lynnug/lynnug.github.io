@@ -82,7 +82,22 @@
 
     <div id="startScreen" class="w-full max-w-2xl text-center p-8">
         <h1 class="text-4xl md:text-5xl mb-4">My Journey in Tech</h1>
-        <p class="text-xl mb-8">The Game</p>
+        <p class="text-xl mb-6">The Game</p>
+        
+        <div class="bg-black bg-opacity-50 rounded-lg p-6 mb-8 text-left">
+            <h2 class="text-2xl mb-4 text-center text-yellow-400">How to Play</h2>
+            <div class="space-y-2 text-lg">
+                <p><span class="text-green-400">🏃‍♀️ Move:</span> <span class="hidden md:inline">Arrow keys or A/D keys</span><span class="md:hidden">Touch left/right sides of screen</span></p>
+                <p><span class="text-blue-400">🦘 Jump:</span> <span class="hidden md:inline">Up arrow, W key, or Spacebar</span><span class="md:hidden">Tap anywhere on screen</span></p>
+                <p><span class="text-yellow-400">✨ Double Jump:</span> <span class="hidden md:inline">Press jump twice</span><span class="md:hidden">Tap twice quickly</span> for higher platforms</p>
+                <p><span class="text-purple-400">📖 Story:</span> Collect icons to unlock my journey milestones</p>
+                <p><span class="text-red-400">⚡ Navigate:</span> <span class="hidden md:inline">Use Enter key</span><span class="md:hidden">Tap continue button</span> to continue through stories</p>
+            </div>
+            <p class="text-center mt-4 text-sm text-gray-300">
+                Experience my path from Uganda to Google through this interactive adventure!
+            </p>
+        </div>
+        
         <button id="startButton" class="start-screen-button text-white font-bold py-4 px-8 rounded-lg text-2xl transition-transform">Start Game</button>
     </div>
 
@@ -887,9 +902,9 @@
         window.addEventListener('keydown', ({ keyCode }) => {
             if (gamePaused) {
                 if (keyCode === 13) { // Enter key
-                    if (!storyModal.classList.contains('hidden')) {
+                    if (storyModal.style.display === 'flex') {
                         closeModalButton.click();
-                    } else if (!celebrationModal.classList.contains('hidden')) {
+                    } else if (celebrationModal.style.display === 'flex') {
                         playAgainButton.click();
                     }
                 }
@@ -933,6 +948,53 @@
                     keys.right.pressed = false;
                     break;
             }
+        });
+
+        // Mobile touch controls
+        let touchStartTime = 0;
+        let lastTouchTime = 0;
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const currentTime = Date.now();
+            
+            // Movement controls - left/right sides of screen
+            if (x < canvas.width * 0.3) {
+                // Left side - move left
+                keys.left.pressed = true;
+            } else if (x > canvas.width * 0.7) {
+                // Right side - move right  
+                keys.right.pressed = true;
+            }
+            
+            // Jump control - anywhere on screen
+            if (player.jumps < 2) {
+                player.velocity.y = -18;
+                player.jumps++;
+            }
+            
+            touchStartTime = currentTime;
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            // Stop movement
+            keys.left.pressed = false;
+            keys.right.pressed = false;
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            
+            // Update movement based on current touch position
+            keys.left.pressed = x < canvas.width * 0.3;
+            keys.right.pressed = x > canvas.width * 0.7;
         });
 
     </script>
